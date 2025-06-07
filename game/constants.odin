@@ -8,14 +8,14 @@ MOVE_SPEED :: 300.0
 ANIMATION_SPEED :: 0.15 // Time between frame changes
 BULLET_SPEED :: 800.0
 MAX_BULLETS :: 50
-
+MUZZLE_FLASH_DURATION :: 0.10
 
 // skills
 FLASH_DISTANCE :: 200
 HEAL_AMOUNT :: 50
 
 // World and camera constants
-WORLD_WIDTH :: 3000.0  // Total world width (much larger than screen)
+WORLD_WIDTH :: 4000.0  // Total world width (much larger than screen)
 CAMERA_FOLLOW_SPEED :: 5.0
 
 // Enemy constants

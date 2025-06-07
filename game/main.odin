@@ -2,8 +2,8 @@ package game
 
 import "core:c"
 import "core:math"
-import rl "vendor:raylib"
 import "core:math/rand"
+import rl "vendor:raylib"
 
 window_width: c.int = 700
 window_height: c.int = 700
@@ -13,6 +13,8 @@ main :: proc() {
 	rl.InitWindow(window_width, window_height, "game")
 	rl.SetWindowMinSize(300, 300)
 	rl.SetTargetFPS(200)
+  rl.InitAudioDevice()
+  
 
 	// Initialize player
 	player := Player {
@@ -33,6 +35,9 @@ main :: proc() {
 	}
 	// Load all 6 player textures
 	player_textures := load_player_textures()
+  shot_sound := rl.LoadSound("assets/shot.wav")
+  game_over_sound := rl.LoadSound("assets/game-over.wav")
+  damage_taken_sound := rl.LoadSound("assets/damage.wav")
 	// Animation variables
 	current_frame: int = 0
 	animation_timer: f32 = 0
@@ -46,7 +51,7 @@ main :: proc() {
 	enemies: [MAX_ENEMIES]Enemy
 	next_enemy_index: int = 0
 	enemy_spawn_timer: f32 = 0
-
+	muzzle_flash_timer: f32
 	for !rl.WindowShouldClose() {
 		window_width = rl.GetScreenWidth()
 		window_height = rl.GetScreenHeight()
@@ -102,10 +107,13 @@ main :: proc() {
 					player.hp = clamp(player.hp, 0, PLAYER_MAX_HP)
 				}
 
+				if muzzle_flash_timer > 0 {
+					muzzle_flash_timer -= rl.GetFrameTime()
+				}
 				// Shooting - left mouse button
 				if rl.IsMouseButtonPressed(.LEFT) {
-
-
+          play_sound_varied(shot_sound)
+					muzzle_flash_timer = MUZZLE_FLASH_DURATION
 					// Calculate player center for shooting from
 					player_center := rl.Vector2 {
 						player.pos.x + PLAYER_SIZE / 2,
@@ -169,6 +177,7 @@ main :: proc() {
 
 				if player.death_timer >= DEATH_ANIMATION_DURATION {
 					game_state = .GAME_OVER
+          rl.PlaySound(game_over_sound)
 				}
 			}
 
@@ -245,6 +254,7 @@ main :: proc() {
 
 						if rl.CheckCollisionPointRec(bullet.pos, player_rect) {
 							// Player takes damage from enemy bullet
+              rl.PlaySound(damage_taken_sound)
 							player.hp -= 15 // Adjust damage as needed
 							player.damage_timer = PLAYER_DAMAGE_COOLDOWN
 							bullet.active = false
@@ -338,6 +348,7 @@ main :: proc() {
 							   player.damage_timer <= 0 {
 								// Player takes damage
 								player.hp -= 20
+                rl.PlaySound(damage_taken_sound)
 								player.damage_timer = PLAYER_DAMAGE_COOLDOWN
 
 								// Check if player dies
@@ -446,12 +457,34 @@ main :: proc() {
 			}
 			// If the player is not facing right, we set the source rectangle's width to be negative.
 			// This tells DrawTexturePro to render it horizontally flipped.
-			if mouse_world_pos.x > player.pos.x {
+			facing_right := mouse_world_pos.x > player.pos.x
+			if facing_right {
 				source_rec.width = -source_rec.width
 			}
 			// We use DrawTexturePro for its ability to render a flipped texture.
 			// The origin is {0, 0} (top-left), and rotation is 0.
 			rl.DrawTexturePro(texture, source_rec, dest_rec, rl.Vector2{0, 0}, 0, player_color)
+			// Draw muzzle flash
+			if muzzle_flash_timer > 0 {
+				// Calculate flash properties
+				flash_alpha := u8((muzzle_flash_timer / MUZZLE_FLASH_DURATION) * 255)
+				flash_size := 12.0 * PLAYER_ZOOM * (muzzle_flash_timer / MUZZLE_FLASH_DURATION)
+
+				// Calculate muzzle position (front of the player)
+				muzzle_offset_x: f32 = facing_right ? dest_rec.width * 0.92 : dest_rec.width * 0.08
+				muzzle_pos := rl.Vector2 {
+					player.pos.x + muzzle_offset_x,
+					player.pos.y + dest_rec.height * 0.5, // Roughly chest height
+				}
+
+				// Draw the muzzle flash as a circle with fade effect
+				flash_color := rl.Color{255, 255, 150, flash_alpha} // Yellow-white flash
+				rl.DrawCircleV(muzzle_pos, flash_size, flash_color)
+
+				// Optional: Add a smaller, brighter inner circle
+				inner_flash_color := rl.Color{255, 255, 255, flash_alpha}
+				rl.DrawCircleV(muzzle_pos, flash_size * 0.5, inner_flash_color)
+			}
 		} else {
 			// Draw death particles
 			for particle in player.death_particles {
@@ -556,6 +589,9 @@ main :: proc() {
 	for texture in player_textures {
 		rl.UnloadTexture(texture)
 	}
-
+  rl.UnloadSound(game_over_sound)
+  rl.UnloadSound(damage_taken_sound)
+  rl.UnloadSound(shot_sound)
+  rl.CloseAudioDevice()
 	rl.CloseWindow()
 }
