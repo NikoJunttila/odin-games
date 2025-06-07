@@ -8,13 +8,15 @@ import rl "vendor:raylib"
 window_width: c.int = 700
 window_height: c.int = 700
 
+PIXEL_WINDOW_HEIGHT :: 1000
+
 main :: proc() {
 	rl.SetConfigFlags({.VSYNC_HINT, .WINDOW_RESIZABLE})
 	rl.InitWindow(window_width, window_height, "game")
 	rl.SetWindowMinSize(300, 300)
 	rl.SetTargetFPS(200)
-  rl.InitAudioDevice()
-  
+	rl.InitAudioDevice()
+
 
 	// Initialize player
 	player := Player {
@@ -28,16 +30,12 @@ main :: proc() {
 	// Game state
 	game_state := GameState.PLAYING
 	// Camera for side-scrolling
-	camera := rl.Camera2D {
-		target   = player.pos,
-		rotation = 0,
-		zoom     = 1.0,
-	}
+
 	// Load all 6 player textures
 	player_textures := load_player_textures()
-  shot_sound := rl.LoadSound("assets/shot.wav")
-  game_over_sound := rl.LoadSound("assets/game-over.wav")
-  damage_taken_sound := rl.LoadSound("assets/damage.wav")
+	shot_sound := rl.LoadSound("assets/shot.wav")
+	game_over_sound := rl.LoadSound("assets/game-over.wav")
+	damage_taken_sound := rl.LoadSound("assets/damage.wav")
 	// Animation variables
 	current_frame: int = 0
 	animation_timer: f32 = 0
@@ -50,18 +48,35 @@ main :: proc() {
 	// Enemy system
 	enemies: [MAX_ENEMIES]Enemy
 	next_enemy_index: int = 0
+
 	enemy_spawn_timer: f32 = 0
 	muzzle_flash_timer: f32
+
+	camera := rl.Camera2D {
+		target   = player.pos,
+		rotation = 0,
+		zoom     = 1.0,
+	}
+
 	for !rl.WindowShouldClose() {
+
 		window_width = rl.GetScreenWidth()
 		window_height = rl.GetScreenHeight()
 		mouse_screen_pos := rl.GetMousePosition()
 		mouse_world_pos := rl.GetScreenToWorld2D(mouse_screen_pos, camera)
+		camera.zoom = f32(window_height / PIXEL_WINDOW_HEIGHT)
 		dt := rl.GetFrameTime()
 
 		switch game_state {
+		case .PAUSED:
+			if rl.IsKeyPressed(.P) {
+				game_state = .PLAYING
+			}
 		case .PLAYING:
 			// Update player damage cooldown
+      if rl.IsKeyPressed(.P){
+        game_state = .PAUSED
+      }
 			if player.damage_timer > 0 {
 				player.damage_timer -= dt
 			}
@@ -112,7 +127,7 @@ main :: proc() {
 				}
 				// Shooting - left mouse button
 				if rl.IsMouseButtonPressed(.LEFT) {
-          play_sound_varied(shot_sound)
+					play_sound_varied(shot_sound)
 					muzzle_flash_timer = MUZZLE_FLASH_DURATION
 					// Calculate player center for shooting from
 					player_center := rl.Vector2 {
@@ -177,7 +192,7 @@ main :: proc() {
 
 				if player.death_timer >= DEATH_ANIMATION_DURATION {
 					game_state = .GAME_OVER
-          rl.PlaySound(game_over_sound)
+					rl.PlaySound(game_over_sound)
 				}
 			}
 
@@ -254,7 +269,7 @@ main :: proc() {
 
 						if rl.CheckCollisionPointRec(bullet.pos, player_rect) {
 							// Player takes damage from enemy bullet
-              play_sound_varied(damage_taken_sound)
+							play_sound_varied(damage_taken_sound)
 							player.hp -= 15 // Adjust damage as needed
 							player.damage_timer = PLAYER_DAMAGE_COOLDOWN
 							bullet.active = false
@@ -348,7 +363,7 @@ main :: proc() {
 							   player.damage_timer <= 0 {
 								// Player takes damage
 								player.hp -= 20
-                rl.PlaySound(damage_taken_sound)
+								rl.PlaySound(damage_taken_sound)
 								player.damage_timer = PLAYER_DAMAGE_COOLDOWN
 
 								// Check if player dies
@@ -550,13 +565,15 @@ main :: proc() {
 		rl.EndMode2D()
 		// Draw UI based on game state
 		switch game_state {
+    case .PAUSED:
+      draw_game_paused_screen()
 		case .PLAYING:
 			draw_exp_bar(player.current_exp, player.exp_to_next_level, player.level)
 			// Draw player HP bar (UI element, not affected by camera)
 			draw_player_hp_bar(player.hp, PLAYER_MAX_HP)
 			draw_skills_bar(skill_list[:])
 			// Draw UI elements (not affected by camera)
-			rl.DrawText("Use A/D to move, SPACE to jump, Mouse to shoot", 10, 10, 20, rl.WHITE)
+			rl.DrawText("Use A/D to move, SPACE to jump, P to pause, Mouse to shoot", 10, 10, 20, rl.WHITE)
 			rl.DrawText(rl.TextFormat("Player X: %.1f", player.pos.x), 10, 35, 20, rl.WHITE)
 			// rl.DrawText(rl.TextFormat("SCORE: %v", score), 10, 60, 20, rl.WHITE)
 
@@ -589,9 +606,9 @@ main :: proc() {
 	for texture in player_textures {
 		rl.UnloadTexture(texture)
 	}
-  rl.UnloadSound(game_over_sound)
-  rl.UnloadSound(damage_taken_sound)
-  rl.UnloadSound(shot_sound)
-  rl.CloseAudioDevice()
+	rl.UnloadSound(game_over_sound)
+	rl.UnloadSound(damage_taken_sound)
+	rl.UnloadSound(shot_sound)
+	rl.CloseAudioDevice()
 	rl.CloseWindow()
 }

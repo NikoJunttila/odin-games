@@ -318,6 +318,39 @@ draw_game_over_screen :: proc() {
 	rl.DrawText(quit_text, (window_width - quit_width) / 2, window_height / 2 + 20, 30, rl.WHITE)
 }
 
+// Draw game over screen
+draw_game_paused_screen :: proc() {
+	// Semi-transparent overlay
+	rl.DrawRectangle(0, 0, window_width, window_height, rl.Color{0, 0, 0, 150})
+
+	// Game Over text
+	game_over_text: cstring = "GAME PAUSED"
+	text_width := rl.MeasureText(game_over_text, 60)
+	rl.DrawText(
+		game_over_text,
+		(window_width - text_width) / 2,
+		window_height / 2 - 100,
+		60,
+		rl.RED,
+	)
+
+	// Instructions
+	restart_text: cstring = "Press P to unpause"
+	restart_width := rl.MeasureText(restart_text, 30)
+	rl.DrawText(
+		restart_text,
+		(window_width - restart_width) / 2,
+		window_height / 2 - 20,
+		30,
+		rl.WHITE,
+	)
+
+	quit_text: cstring = "Press ESC to Quit"
+	quit_width := rl.MeasureText(quit_text, 30)
+	rl.DrawText(quit_text, (window_width - quit_width) / 2, window_height / 2 + 20, 30, rl.WHITE)
+}
+
+
 debug_mouse_info :: proc(camera: rl.Camera2D) {
 	mouse_screen_pos := rl.GetMousePosition()
 	mouse_world_pos := rl.GetScreenToWorld2D(mouse_screen_pos, camera)

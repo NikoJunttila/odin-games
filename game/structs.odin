@@ -6,6 +6,7 @@ import rl "vendor:raylib"
 GameState :: enum {
     PLAYING,
     GAME_OVER,
+    PAUSED
 }
 
 // Enemy Type enum
