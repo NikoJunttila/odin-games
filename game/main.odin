@@ -254,7 +254,7 @@ main :: proc() {
 
 						if rl.CheckCollisionPointRec(bullet.pos, player_rect) {
 							// Player takes damage from enemy bullet
-              rl.PlaySound(damage_taken_sound)
+              play_sound_varied(damage_taken_sound)
 							player.hp -= 15 // Adjust damage as needed
 							player.damage_timer = PLAYER_DAMAGE_COOLDOWN
 							bullet.active = false
