@@ -3,6 +3,7 @@ package game
 import "core:c"
 import "core:math"
 import rl "vendor:raylib"
+import "core:math/rand"
 
 window_width: c.int = 700
 window_height: c.int = 700
@@ -15,18 +16,17 @@ main :: proc() {
 
 	// Initialize player
 	player := Player {
-		pos = {300, 400},
-		hp  = PLAYER_MAX_HP,
-    level = 1,
-    current_exp = 0,
-    exp_to_next_level = 100,
+		pos               = {300, 400},
+		hp                = PLAYER_MAX_HP,
+		level             = 1,
+		current_exp       = 0,
+		exp_to_next_level = 100,
 	}
 	skill_list := skills_list_init()
 	// Game state
 	game_state := GameState.PLAYING
 	// Camera for side-scrolling
 	camera := rl.Camera2D {
-		offset   = {f32(window_width) / 1.5, f32(window_height)},
 		target   = player.pos,
 		rotation = 0,
 		zoom     = 1.0,
@@ -36,7 +36,6 @@ main :: proc() {
 	// Animation variables
 	current_frame: int = 0
 	animation_timer: f32 = 0
-	facing_right: bool = true
 	is_moving: bool = false
 
 	// Bullet system
@@ -51,6 +50,8 @@ main :: proc() {
 	for !rl.WindowShouldClose() {
 		window_width = rl.GetScreenWidth()
 		window_height = rl.GetScreenHeight()
+		mouse_screen_pos := rl.GetMousePosition()
+		mouse_world_pos := rl.GetScreenToWorld2D(mouse_screen_pos, camera)
 		dt := rl.GetFrameTime()
 
 		switch game_state {
@@ -66,11 +67,9 @@ main :: proc() {
 				is_moving = false
 				if rl.IsKeyDown(.A) {
 					player.vel.x = -MOVE_SPEED
-					facing_right = false
 					is_moving = true
 				} else if rl.IsKeyDown(.D) {
 					player.vel.x = MOVE_SPEED
-					facing_right = true
 					is_moving = true
 				} else {
 					player.vel.x = 0
@@ -105,9 +104,7 @@ main :: proc() {
 
 				// Shooting - left mouse button
 				if rl.IsMouseButtonPressed(.LEFT) {
-					// Get mouse position in world coordinates
-					mouse_screen_pos := rl.GetMousePosition()
-					mouse_world_pos := rl.GetScreenToWorld2D(mouse_screen_pos, camera)
+
 
 					// Calculate player center for shooting from
 					player_center := rl.Vector2 {
@@ -199,7 +196,7 @@ main :: proc() {
 			}
 
 			// Update animation only when moving and alive
-			if is_moving && !player.dying {
+			if !player.dying {
 				animation_timer += dt
 				if animation_timer >= ANIMATION_SPEED {
 					animation_timer = 0
@@ -230,7 +227,7 @@ main :: proc() {
 
 								// Start death animation if HP reaches 0
 								if enemy.hp <= 0 {
-                  player_exp_update(&player, 20)
+									player_exp_update(&player, 20)
 									start_enemy_death_animation(&enemy)
 								}
 								break
@@ -404,6 +401,18 @@ main :: proc() {
 			// Determine player color (white or flashing red if damaged)
 			player_color := rl.WHITE
 			if player.damage_timer > 0 {
+				// Calculate shake intensity (strongest at start, fades out)
+				shake_intensity := (player.damage_timer / PLAYER_DAMAGE_COOLDOWN) * 8.0
+
+				// Generate random shake offset
+				shake_x := (rand.float32() - 0.5) * shake_intensity
+				shake_y := (rand.float32() - 0.5) * shake_intensity
+
+				// Apply shake to camera offset
+				base_offset_x := f32(window_width) / 2
+				base_offset_y := f32(window_height) / 1.7
+				camera.offset = {base_offset_x + shake_x, base_offset_y + shake_y}
+
 				// Flash red when damaged
 				flash_intensity := (player.damage_timer / PLAYER_DAMAGE_COOLDOWN) * 0.5
 				player_color = rl.Color {
@@ -412,6 +421,9 @@ main :: proc() {
 					u8(255 * (1 - flash_intensity)),
 					255,
 				}
+			} else {
+				// Reset to normal camera position
+				camera.offset = {f32(window_width) / 2, f32(window_height) / 1.7}
 			}
 
 			// Get the current texture for the animation frame
@@ -432,10 +444,9 @@ main :: proc() {
 				width  = f32(texture.width) * PLAYER_ZOOM,
 				height = f32(texture.height) * PLAYER_ZOOM,
 			}
-			// Flip the texture if facing left ---
 			// If the player is not facing right, we set the source rectangle's width to be negative.
 			// This tells DrawTexturePro to render it horizontally flipped.
-			if facing_right {
+			if mouse_world_pos.x > player.pos.x {
 				source_rec.width = -source_rec.width
 			}
 			// We use DrawTexturePro for its ability to render a flipped texture.
@@ -530,10 +541,7 @@ main :: proc() {
 				rl.WHITE,
 			)
 
-			// mouse_screen_pos := rl.GetMousePosition()
-			// mouse_world_pos := rl.GetScreenToWorld2D(mouse_screen_pos, camera)
-			// rl.DrawCircleV(mouse_world_pos, 5, rl.GREEN)
-			debug_mouse_info(camera)
+		// debug_mouse_info(camera)
 
 		case .GAME_OVER:
 			// Draw game over screen
