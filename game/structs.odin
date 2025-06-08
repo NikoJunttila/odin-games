@@ -26,7 +26,7 @@ Skill :: struct {
   color : rl.Color,
   cooldown : f32,
   cd_left : f32,
-  on_cd : bool
+  on_cd : bool,
 }
 
 Particle :: struct {

@@ -55,21 +55,16 @@ main :: proc() {
 			// Only allow input if player is not dying
 			if !player.dying {
 				player_alive_update(&player, &skill_list, camera)
+        player_alive_camera_update(&camera, player)
 			}
 			// Update player death animation
 			if player.dying {
 				player_dying(&player, &game_state)
 			}
-			// Update camera to follow player smoothly (only if player is alive)
-			if !player.dying {
-        player_alive_camera_update(&camera, player)
-      }
-
 			// Update bullets
 			for &bullet in bullets {
 				bullet_logic_update(&bullet, &enemies, &player)
 			}
-
 			// Update enemies
 			if !player.dying { 	// Don't spawn enemies if player is dying
 				enemy_spawn_timer += dt
@@ -111,6 +106,7 @@ main :: proc() {
 
 		if !player.dying {
 			draw_player(player, &camera, player_textures)
+      draw_gun(player,player_textures.gun)
 		} else {
 			// Draw death particles
 			for particle in player.death_particles {
@@ -133,6 +129,14 @@ main :: proc() {
 		for &enemy in enemies {
 			draw_enemy(enemy)
 		}
+    if flash_animation_timer > 0{
+      draw_flash_animation()
+      flash_animation_timer -= dt
+    }
+    if heal_animation_timer > 0{
+      draw_heal_animation(player.pos)
+      heal_animation_timer -= dt
+    }
 
 		// Draw world bounds visualization
 		rl.DrawRectangleLines(0, 0, WORLD_WIDTH, window_height, rl.RED)

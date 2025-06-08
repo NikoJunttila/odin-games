@@ -1,5 +1,6 @@
 package game
 
+import "core:math"
 import "core:math/rand"
 import rl "vendor:raylib"
 
@@ -12,23 +13,6 @@ player_exp_update :: proc(player: ^Player, exp_amount: int) {
 	}
 }
 
-skills_list_init :: proc() -> [2]Skill {
-	flash := Skill {
-		name     = SkillList.FLASH,
-		key      = "F",
-		color    = rl.YELLOW,
-		cooldown = 5,
-	}
-	heal := Skill {
-		name     = SkillList.HEAL,
-		key      = "E",
-		color    = rl.GREEN,
-		cooldown = 30,
-	}
-	skill_list := [2]Skill{flash, heal}
-	return skill_list
-}
-
 init_player :: proc() -> Player {
 	player := Player {
 		pos               = {300, 400},
@@ -38,6 +22,66 @@ init_player :: proc() -> Player {
 		exp_to_next_level = 100,
 	}
 	return player
+}
+draw_gun :: proc(player: Player, gun_texture: rl.Texture2D) {
+	// Calculate the direction from player to mouse
+	direction := rl.Vector2{mouse_world_pos.x - player.pos.x, mouse_world_pos.y - player.pos.y}
+	// Calculate the angle in radians
+	angle_rad := math.atan2(direction.y, direction.x)
+	// Convert to degrees for raylib
+	angle_deg := angle_rad * (180.0 / math.PI)
+
+	// Check if mouse is on the right side of the player
+	facing_right := mouse_world_pos.x > player.pos.x
+
+	source_rec := rl.Rectangle {
+		x      = 0,
+		y      = 0,
+		width  = f32(gun_texture.width / 2),
+		height = facing_right ? -f32(gun_texture.height / 2) : f32(gun_texture.height / 2), // Flip vertically when facing right
+	}
+
+	// Position the gun slightly offset from player center
+	gun_offset := rl.Vector2{50, 50} // Adjust this offset as needed
+	gun_pos := rl.Vector2{player.pos.x + gun_offset.x, player.pos.y + gun_offset.y}
+	dest_rec := rl.Rectangle {
+		x      = gun_pos.x,
+		y      = gun_pos.y,
+		width  = f32(gun_texture.width / 2),
+		height = f32(gun_texture.height / 2),
+	}
+	// Set origin to center of gun for proper rotation
+	// You might need to adjust this based on your gun sprite's design
+	origin := rl.Vector2 {
+		f32(gun_texture.width / 4), // Half of the displayed width
+		f32(gun_texture.height / 4), // Half of the displayed height
+	}
+	// Since gun sprite points left by default, we need to add 180 degrees
+	final_angle := angle_deg + 180
+	rl.DrawTexturePro(gun_texture, source_rec, dest_rec, origin, final_angle, rl.WHITE)
+	// Draw muzzle flash
+	if muzzle_flash_timer > 0 {
+		// Define the length of the gun barrel. You may need to adjust this value.
+		gun_barrel_length := f32(dest_rec.width) * 0.5
+
+		// Calculate the muzzle flash position based on the gun's rotation
+		muzzle_pos := rl.Vector2 {
+			gun_pos.x + gun_barrel_length * math.cos(angle_rad),
+			gun_pos.y + gun_barrel_length * math.sin(angle_rad),
+		}
+		
+		// Calculate flash properties
+		flash_alpha := u8((muzzle_flash_timer / MUZZLE_FLASH_DURATION) * 255)
+		flash_size := 12.0 * (muzzle_flash_timer / MUZZLE_FLASH_DURATION)
+
+		// Draw the muzzle flash as a circle with fade effect
+		flash_color := rl.Color{255, 255, 150, flash_alpha} // Yellow-white flash
+		rl.DrawCircleV(muzzle_pos, flash_size, flash_color)
+
+		//Add a smaller, brighter inner circle
+		inner_flash_color := rl.Color{255, 255, 255, flash_alpha}
+		rl.DrawCircleV(muzzle_pos, flash_size * 0.5, inner_flash_color)
+	}
 }
 
 draw_player :: proc(player: Player, camera: ^rl.Camera2D, player_textures: Player_animations) {
@@ -110,27 +154,4 @@ draw_player :: proc(player: Player, camera: ^rl.Camera2D, player_textures: Playe
 		0,
 		player_color,
 	)
-
-	// Draw muzzle flash
-	if muzzle_flash_timer > 0 {
-		// Calculate flash properties
-		flash_alpha := u8((muzzle_flash_timer / MUZZLE_FLASH_DURATION) * 255)
-		flash_size := 12.0 * (muzzle_flash_timer / MUZZLE_FLASH_DURATION)
-
-		// Calculate muzzle position (front of the player)
-		muzzle_offset_x: f32 =
-			facing_right ? player_dest_rec.width * 0.92 : player_dest_rec.width * 0.08
-		muzzle_pos := rl.Vector2 {
-			player.pos.x + muzzle_offset_x,
-			player.pos.y + player_dest_rec.height * 0.5, // Roughly chest height
-		}
-
-		// Draw the muzzle flash as a circle with fade effect
-		flash_color := rl.Color{255, 255, 150, flash_alpha} // Yellow-white flash
-		rl.DrawCircleV(muzzle_pos, flash_size, flash_color)
-
-		// Optional: Add a smaller, brighter inner circle
-		inner_flash_color := rl.Color{255, 255, 255, flash_alpha}
-		rl.DrawCircleV(muzzle_pos, flash_size * 0.5, inner_flash_color)
-	}
 }

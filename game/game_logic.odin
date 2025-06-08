@@ -142,9 +142,8 @@ player_alive_update :: proc(player: ^Player, skill_list: ^[2]Skill, camera: rl.C
 	if rl.IsKeyPressed(.E) && !skill_list[1].on_cd { 	//heal
 		skill_list[1].on_cd = true
 		skill_list[1].cd_left = skill_list[1].cooldown
-		player.hp += HEAL_AMOUNT
-		player.hp = clamp(player.hp, 0, PLAYER_MAX_HP)
-	}
+	  skill_heal(player)		
+  }
 
 	if muzzle_flash_timer > 0 {
 		muzzle_flash_timer -= rl.GetFrameTime()
