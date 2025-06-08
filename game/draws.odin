@@ -6,93 +6,97 @@ import "core:math"
 import rl "vendor:raylib"
 
 draw_exp_bar :: proc(current_exp: int, target_exp: int, current_level: int) {
-    // Bar dimensions
-    bar_width: f32 = 300
-    bar_height: f32 = 25
-    border_thickness: f32 = 2
-    
-    // Position at top middle of screen
-    bar_x := (f32(window_width) - bar_width) / 2 // Center horizontally
-    bar_y: f32 = 50 // 20 pixels from top
-    
-    // Calculate experience progress (0.0 to 1.0)
-    exp_progress: f32 = 0.0
-    if target_exp > 0 {
-        exp_progress = f32(current_exp) / f32(target_exp)
-        exp_progress = clamp(exp_progress, 0.0, 1.0) // Ensure it's between 0 and 1
-    }
-    
-    // Draw background (dark gray)
-    rl.DrawRectangleV({bar_x, bar_y}, {bar_width, bar_height}, rl.DARKGRAY)
-    
-    // Draw experience fill (blue to purple gradient effect)
-    fill_width := bar_width * exp_progress
-    if fill_width > 0 {
-        // You can use a simple color or create a gradient effect
-        exp_color := rl.Color{50, 150, 255, 255} // Blue
-        
-        // Optional: Color changes based on progress
-        if exp_progress > 0.75 {
-            exp_color = rl.Color{150, 50, 255, 255} // Purple when close to level up
-        } else if exp_progress > 0.5 {
-            exp_color = rl.Color{100, 100, 255, 255} // Blue-purple mix
-        }
-        
-        rl.DrawRectangleV({bar_x, bar_y}, {fill_width, bar_height}, exp_color)
-    }
-    
-    // Draw border
-    rl.DrawRectangleLinesEx({bar_x, bar_y, bar_width, bar_height}, border_thickness, rl.WHITE)
-    
-    // Draw level text on the left side of the bar
-    level_text := rl.TextFormat("LVL %d", current_level)
-    level_text_size: c.int = 18
-    level_text_width := rl.MeasureText(level_text, level_text_size)
-    level_text_x := bar_x - f32(level_text_width) - 10 // 10 pixels gap from bar
-    level_text_y := bar_y + (bar_height - f32(level_text_size)) / 2 // Center vertically with bar
-    
-    rl.DrawText(level_text, c.int(level_text_x), c.int(level_text_y), level_text_size, rl.WHITE)
-    
-    // Draw experience text inside the bar
-    exp_text := rl.TextFormat("%d / %d", current_exp, target_exp)
-    exp_text_size: c.int = 14
-    exp_text_width := rl.MeasureText(exp_text, exp_text_size)
-    exp_text_x := bar_x + (bar_width - f32(exp_text_width)) / 2 // Center horizontally in bar
-    exp_text_y := bar_y + (bar_height - f32(exp_text_size)) / 2 // Center vertically in bar
-    
-    // Use black text on light areas, white text on dark areas
-    text_color := exp_progress > 0.5 ? rl.WHITE : rl.BLACK
-    rl.DrawText(exp_text, c.int(exp_text_x), c.int(exp_text_y), exp_text_size, text_color)
-    
-    // Optional: Draw percentage text above the bar
-    percentage_text := rl.TextFormat("%.1f%%", exp_progress * 100)
-    percentage_text_size: c.int = 12
-    percentage_text_width := rl.MeasureText(percentage_text, percentage_text_size)
-    percentage_text_x := bar_x + (bar_width - f32(percentage_text_width)) / 2
-    percentage_text_y := bar_y - f32(percentage_text_size) - 5 // 5 pixels above bar
-    
-    rl.DrawText(
-        percentage_text, 
-        c.int(percentage_text_x), 
-        c.int(percentage_text_y), 
-        percentage_text_size, 
-        rl.LIGHTGRAY
-    )
-    
-    // Optional: Add a subtle glow effect when close to leveling up
-    if exp_progress > 0.9 {
-        glow_intensity := math.sin(rl.GetTime() * 6) * 0.3 + 0.7 // Pulsing effect
-        glow_color := rl.Color{255, 255, 0, u8(glow_intensity * 100)} // Yellow glow
-        
-        // Draw slightly larger rectangle behind for glow effect
-        glow_padding: f32 = 3
-        rl.DrawRectangleLinesEx(
-            {bar_x - glow_padding, bar_y - glow_padding, 
-             bar_width + glow_padding * 2, bar_height + glow_padding * 2}, 
-            1, 
-            glow_color
-        )
-    }
+	// Bar dimensions
+	bar_width: f32 = 300
+	bar_height: f32 = 25
+	border_thickness: f32 = 2
+
+	// Position at top middle of screen
+	bar_x := (f32(window_width) - bar_width) / 2 // Center horizontally
+	bar_y: f32 = 50 // 20 pixels from top
+
+	// Calculate experience progress (0.0 to 1.0)
+	exp_progress: f32 = 0.0
+	if target_exp > 0 {
+		exp_progress = f32(current_exp) / f32(target_exp)
+		exp_progress = clamp(exp_progress, 0.0, 1.0) // Ensure it's between 0 and 1
+	}
+
+	// Draw background (dark gray)
+	rl.DrawRectangleV({bar_x, bar_y}, {bar_width, bar_height}, rl.DARKGRAY)
+
+	// Draw experience fill (blue to purple gradient effect)
+	fill_width := bar_width * exp_progress
+	if fill_width > 0 {
+		// You can use a simple color or create a gradient effect
+		exp_color := rl.Color{50, 150, 255, 255} // Blue
+
+		// Optional: Color changes based on progress
+		if exp_progress > 0.75 {
+			exp_color = rl.Color{150, 50, 255, 255} // Purple when close to level up
+		} else if exp_progress > 0.5 {
+			exp_color = rl.Color{100, 100, 255, 255} // Blue-purple mix
+		}
+
+		rl.DrawRectangleV({bar_x, bar_y}, {fill_width, bar_height}, exp_color)
+	}
+
+	// Draw border
+	rl.DrawRectangleLinesEx({bar_x, bar_y, bar_width, bar_height}, border_thickness, rl.WHITE)
+
+	// Draw level text on the left side of the bar
+	level_text := rl.TextFormat("LVL %d", current_level)
+	level_text_size: c.int = 18
+	level_text_width := rl.MeasureText(level_text, level_text_size)
+	level_text_x := bar_x - f32(level_text_width) - 10 // 10 pixels gap from bar
+	level_text_y := bar_y + (bar_height - f32(level_text_size)) / 2 // Center vertically with bar
+
+	rl.DrawText(level_text, c.int(level_text_x), c.int(level_text_y), level_text_size, rl.WHITE)
+
+	// Draw experience text inside the bar
+	exp_text := rl.TextFormat("%d / %d", current_exp, target_exp)
+	exp_text_size: c.int = 14
+	exp_text_width := rl.MeasureText(exp_text, exp_text_size)
+	exp_text_x := bar_x + (bar_width - f32(exp_text_width)) / 2 // Center horizontally in bar
+	exp_text_y := bar_y + (bar_height - f32(exp_text_size)) / 2 // Center vertically in bar
+
+	// Use black text on light areas, white text on dark areas
+	text_color := exp_progress > 0.5 ? rl.WHITE : rl.BLACK
+	rl.DrawText(exp_text, c.int(exp_text_x), c.int(exp_text_y), exp_text_size, text_color)
+
+	// Optional: Draw percentage text above the bar
+	percentage_text := rl.TextFormat("%.1f%%", exp_progress * 100)
+	percentage_text_size: c.int = 12
+	percentage_text_width := rl.MeasureText(percentage_text, percentage_text_size)
+	percentage_text_x := bar_x + (bar_width - f32(percentage_text_width)) / 2
+	percentage_text_y := bar_y - f32(percentage_text_size) - 5 // 5 pixels above bar
+
+	rl.DrawText(
+		percentage_text,
+		c.int(percentage_text_x),
+		c.int(percentage_text_y),
+		percentage_text_size,
+		rl.LIGHTGRAY,
+	)
+
+	// Optional: Add a subtle glow effect when close to leveling up
+	if exp_progress > 0.9 {
+		glow_intensity := math.sin(rl.GetTime() * 6) * 0.3 + 0.7 // Pulsing effect
+		glow_color := rl.Color{255, 255, 0, u8(glow_intensity * 100)} // Yellow glow
+
+		// Draw slightly larger rectangle behind for glow effect
+		glow_padding: f32 = 3
+		rl.DrawRectangleLinesEx(
+			{
+				bar_x - glow_padding,
+				bar_y - glow_padding,
+				bar_width + glow_padding * 2,
+				bar_height + glow_padding * 2,
+			},
+			1,
+			glow_color,
+		)
+	}
 }
 
 draw_skills_bar :: proc(skills: []Skill) {
@@ -350,6 +354,23 @@ draw_game_paused_screen :: proc() {
 	rl.DrawText(quit_text, (window_width - quit_width) / 2, window_height / 2 + 20, 30, rl.WHITE)
 }
 
+draw_game_playing_texts :: proc(player : Player, enemies : []Enemy, skill_list : []Skill) {
+	draw_exp_bar(player.current_exp, player.exp_to_next_level, player.level)
+	draw_player_hp_bar(player.hp, PLAYER_MAX_HP)
+	draw_skills_bar(skill_list[:])
+	// Draw UI elements (not affected by camera)
+	rl.DrawText("Use A/D to move, SPACE to jump, P to pause, Mouse to shoot", 10, 10, 20, rl.WHITE)
+	rl.DrawText(rl.TextFormat("Player X: %.1f", player.pos.x), 10, 35, 20, rl.WHITE)
+	// rl.DrawText(rl.TextFormat("SCORE: %v", score), 10, 60, 20, rl.WHITE)
+
+	active_enemies := 0
+	for enemy in enemies {
+		if enemy.active && !enemy.dying do active_enemies += 1
+	}
+	rl.DrawText(rl.TextFormat("Enemies: %d", active_enemies), 10, 85, 20, rl.WHITE)
+	rl.DrawText(rl.TextFormat("Player HP: %d/%d", player.hp, PLAYER_MAX_HP), 10, 110, 20, rl.WHITE)
+	// debug_mouse_info(camera)
+}
 
 debug_mouse_info :: proc(camera: rl.Camera2D) {
 	mouse_screen_pos := rl.GetMousePosition()

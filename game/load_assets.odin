@@ -33,7 +33,7 @@ load_sounds :: proc() -> Sounds{
   return sounds
 }
 
-unload_assets :: proc(assets : ^Player_animations, sounds : ^Sounds){
+unload_assets :: proc(assets : ^Player_animations){
   rl.UnloadTexture(assets.idle)
   rl.UnloadTexture(assets.run)
   rl.UnloadTexture(assets.gun)
