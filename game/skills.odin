@@ -3,7 +3,8 @@ package game
 import "core:math"
 import rl "vendor:raylib"
 
-skills_list_init :: proc() -> [2]Skill {
+SKILL_COUNT :: 2
+skills_list_init :: proc() -> [SKILL_COUNT]Skill {
 	flash := Skill {
 		name     = SkillList.FLASH,
 		key      = "F",
@@ -14,9 +15,9 @@ skills_list_init :: proc() -> [2]Skill {
 		name     = SkillList.HEAL,
 		key      = "E",
 		color    = rl.GREEN,
-		cooldown = 2,
+		cooldown = 30,
 	}
-	skill_list := [2]Skill{flash, heal}
+	skill_list := [SKILL_COUNT]Skill{flash, heal}
 	return skill_list
 }
 FLASH_ANIMATION_DURATION :: 0.50
@@ -175,6 +176,7 @@ skill_heal :: proc(player: ^Player) {
 	player.hp += HEAL_AMOUNT
 	player.hp = clamp(player.hp, 0, PLAYER_MAX_HP)
 	heal_animation_timer = HEAL_ANIMATION_DURATION
+  rl.PlaySound(sounds.heal)
 }
 
 draw_flash_animation :: proc() {
@@ -289,21 +291,19 @@ draw_flash_animation :: proc() {
 }
 
 skill_flash :: proc(player: ^Player, camera: rl.Camera2D) {
+  play_sound_varied(sounds.flash)
 	flash_animation_timer = FLASH_ANIMATION_DURATION
 	flash_start_pos = player.pos
 	mouse_screen_pos := rl.GetMousePosition()
 	// Get mouse position in world coordinates
 	mouse_world_pos := rl.GetScreenToWorld2D(mouse_screen_pos, camera)
-
 	// Calculate player center position
 	player_center := rl.Vector2{player.pos.x + PLAYER_SIZE / 2, player.pos.y + PLAYER_SIZE / 2}
-
 	// Calculate direction vector from player to mouse
 	direction := rl.Vector2 {
 		mouse_world_pos.x - player_center.x,
 		mouse_world_pos.y - player_center.y,
 	}
-
 	// Normalize the direction vector
 	length := math.sqrt(direction.x * direction.x + direction.y * direction.y)
 	if length > 0 {

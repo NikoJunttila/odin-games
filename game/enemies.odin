@@ -4,7 +4,6 @@ import "core:c"
 import "core:math"
 import rl "vendor:raylib"
 
-
 update_enemy :: proc(enemy : ^Enemy, player : ^Player) {
 	if enemy.active {
 		if enemy.dying {
@@ -157,6 +156,7 @@ update_exploder_enemy :: proc(enemy: ^Enemy, player: ^Player) {
 		// Countdown to explosion
 		enemy.death_timer += dt
 		if enemy.death_timer > 1.0 {
+      rl.PlaySound(sounds.explosion)
 			// Explode
 			player_dist := rl.Vector2Distance(enemy.pos, player.pos)
 			if player_dist < enemy.explosion_radius && player.damage_timer <= 0 {

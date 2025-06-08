@@ -242,7 +242,6 @@ draw_player_hp_bar :: proc(current_hp: int, max_hp: int) {
 	)
 }
 
-
 // Start enemy death animation
 start_enemy_death_animation :: proc(enemy: ^Enemy) {
 	enemy.dying = true

@@ -106,7 +106,7 @@ player_alive_camera_update :: proc(camera: ^rl.Camera2D, player: Player) {
 	}
 }
 
-player_alive_update :: proc(player: ^Player, skill_list: ^[2]Skill, camera: rl.Camera2D) {
+player_alive_update :: proc(player: ^Player, skill_list: ^[SKILL_COUNT]Skill, camera: rl.Camera2D) {
 	// Horizontal movement
 	is_moving = false
 	if rl.IsKeyDown(.A) {
@@ -150,7 +150,7 @@ player_alive_update :: proc(player: ^Player, skill_list: ^[2]Skill, camera: rl.C
 	}
 	// Shooting - left mouse button
 	if rl.IsMouseButtonPressed(.LEFT) {
-		play_sound_varied(sounds.shot)
+		play_sound_varied_low(sounds.shot)
 		muzzle_flash_timer = MUZZLE_FLASH_DURATION
 		// Calculate player center for shooting from
 		player_center := rl.Vector2{player.pos.x + PLAYER_SIZE / 2, player.pos.y + PLAYER_SIZE / 2}

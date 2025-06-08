@@ -10,7 +10,10 @@ player_exp_update :: proc(player: ^Player, exp_amount: int) {
 		player.level += 1
 		player.current_exp -= player.exp_to_next_level
 		player.exp_to_next_level += 100
-	}
+    rl.PlaySound(sounds.level_up)
+	} else {
+    play_sound_varied(sounds.score)
+  }
 }
 
 init_player :: proc() -> Player {
