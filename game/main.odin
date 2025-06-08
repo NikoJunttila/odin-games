@@ -1,6 +1,7 @@
 package game
 
 import "core:c"
+import "core:fmt"
 import "core:math"
 import "core:math/rand"
 import rl "vendor:raylib"
@@ -33,9 +34,7 @@ main :: proc() {
 
 	// Load all 6 player textures
 	player_textures := load_player_textures()
-	shot_sound := rl.LoadSound("assets/shot.wav")
-	game_over_sound := rl.LoadSound("assets/game-over.wav")
-	damage_taken_sound := rl.LoadSound("assets/damage.wav")
+	sound := load_sounds()
 	// Animation variables
 	current_frame: int = 0
 	animation_timer: f32 = 0
@@ -74,9 +73,9 @@ main :: proc() {
 			}
 		case .PLAYING:
 			// Update player damage cooldown
-      if rl.IsKeyPressed(.P){
-        game_state = .PAUSED
-      }
+			if rl.IsKeyPressed(.P) {
+				game_state = .PAUSED
+			}
 			if player.damage_timer > 0 {
 				player.damage_timer -= dt
 			}
@@ -127,7 +126,7 @@ main :: proc() {
 				}
 				// Shooting - left mouse button
 				if rl.IsMouseButtonPressed(.LEFT) {
-					play_sound_varied(shot_sound)
+					play_sound_varied(sound.shot)
 					muzzle_flash_timer = MUZZLE_FLASH_DURATION
 					// Calculate player center for shooting from
 					player_center := rl.Vector2 {
@@ -192,7 +191,7 @@ main :: proc() {
 
 				if player.death_timer >= DEATH_ANIMATION_DURATION {
 					game_state = .GAME_OVER
-					rl.PlaySound(game_over_sound)
+					rl.PlaySound(sound.game_over)
 				}
 			}
 
@@ -219,12 +218,13 @@ main :: proc() {
 				)
 			}
 
-			// Update animation only when moving and alive
+			// Update animation only when alive
 			if !player.dying {
 				animation_timer += dt
 				if animation_timer >= ANIMATION_SPEED {
 					animation_timer = 0
 					current_frame = (current_frame + 1) % 6
+					// fmt.println(current_frame)
 				}
 			}
 
@@ -269,7 +269,7 @@ main :: proc() {
 
 						if rl.CheckCollisionPointRec(bullet.pos, player_rect) {
 							// Player takes damage from enemy bullet
-							play_sound_varied(damage_taken_sound)
+							play_sound_varied(sound.damage_taken)
 							player.hp -= 15 // Adjust damage as needed
 							player.damage_timer = PLAYER_DAMAGE_COOLDOWN
 							bullet.active = false
@@ -363,7 +363,7 @@ main :: proc() {
 							   player.damage_timer <= 0 {
 								// Player takes damage
 								player.hp -= 20
-								rl.PlaySound(damage_taken_sound)
+								rl.PlaySound(sound.damage_taken)
 								player.damage_timer = PLAYER_DAMAGE_COOLDOWN
 
 								// Check if player dies
@@ -453,43 +453,60 @@ main :: proc() {
 			}
 
 			// Get the current texture for the animation frame
-			texture := player_textures[current_frame]
-
-			// Define the source rectangle from the texture. By default, it's the whole texture.
-			source_rec := rl.Rectangle {
-				x      = 0,
-				y      = 0,
-				width  = f32(texture.width),
-				height = f32(texture.height),
+			player_texture := player_textures.idle
+			if is_moving {
+				player_texture = player_textures.run
 			}
-
+     
+			x_frame := f32(current_frame % int(player_textures.frames_width))
+			y_frame := f32(current_frame / int(player_textures.frames_width))
+			// Define the source rectangle from the texture. By default, it's the whole texture.
+			player_source_rec := rl.Rectangle {
+				x      = x_frame * f32(player_texture.width) / f32(player_textures.frames_width),
+				y      = f32(player_texture.height) * y_frame / f32(player_textures.frames_height),
+				width  = f32(player_texture.width / player_textures.frames_width),
+				height = f32(player_texture.height / player_textures.frames_height),
+			}
+      fmt.println(player_source_rec)
 			// Define the destination rectangle on the screen, applying the scale.
-			dest_rec := rl.Rectangle {
+			player_dest_rec := rl.Rectangle {
 				x      = player.pos.x,
 				y      = player.pos.y,
-				width  = f32(texture.width) * PLAYER_ZOOM,
-				height = f32(texture.height) * PLAYER_ZOOM,
+				width  = f32(
+					player_texture.width /
+					 /* make bigger to zoom player also below*/player_textures.frames_width,
+				),
+				height = f32(player_texture.height / player_textures.frames_height),
 			}
 			// If the player is not facing right, we set the source rectangle's width to be negative.
 			// This tells DrawTexturePro to render it horizontally flipped.
 			facing_right := mouse_world_pos.x > player.pos.x
 			if facing_right {
-				source_rec.width = -source_rec.width
+				player_source_rec.width = -player_source_rec.width
 			}
 			// We use DrawTexturePro for its ability to render a flipped texture.
 			// The origin is {0, 0} (top-left), and rotation is 0.
-			rl.DrawTexturePro(texture, source_rec, dest_rec, rl.Vector2{0, 0}, 0, player_color)
+			rl.DrawTexturePro(
+				player_texture,
+				player_source_rec,
+				player_dest_rec,
+				rl.Vector2{0, 0},
+				0,
+				player_color,
+			)
+
 			// Draw muzzle flash
 			if muzzle_flash_timer > 0 {
 				// Calculate flash properties
 				flash_alpha := u8((muzzle_flash_timer / MUZZLE_FLASH_DURATION) * 255)
-				flash_size := 12.0 * PLAYER_ZOOM * (muzzle_flash_timer / MUZZLE_FLASH_DURATION)
+				flash_size := 12.0 * (muzzle_flash_timer / MUZZLE_FLASH_DURATION)
 
 				// Calculate muzzle position (front of the player)
-				muzzle_offset_x: f32 = facing_right ? dest_rec.width * 0.92 : dest_rec.width * 0.08
+				muzzle_offset_x: f32 =
+					facing_right ? player_dest_rec.width * 0.92 : player_dest_rec.width * 0.08
 				muzzle_pos := rl.Vector2 {
 					player.pos.x + muzzle_offset_x,
-					player.pos.y + dest_rec.height * 0.5, // Roughly chest height
+					player.pos.y + player_dest_rec.height * 0.5, // Roughly chest height
 				}
 
 				// Draw the muzzle flash as a circle with fade effect
@@ -547,7 +564,6 @@ main :: proc() {
 						rl.Color{139, 0, 0, 255},
 					) // Dark red border
 
-					// Draw HP bar
 					draw_hp_bar(enemy.pos, enemy.hp, enemy.max_hp)
 				} else {
 					// Draw death particles
@@ -565,19 +581,23 @@ main :: proc() {
 		rl.EndMode2D()
 		// Draw UI based on game state
 		switch game_state {
-    case .PAUSED:
-      draw_game_paused_screen()
+		case .PAUSED:
+			draw_game_paused_screen()
 		case .PLAYING:
 			draw_exp_bar(player.current_exp, player.exp_to_next_level, player.level)
-			// Draw player HP bar (UI element, not affected by camera)
 			draw_player_hp_bar(player.hp, PLAYER_MAX_HP)
 			draw_skills_bar(skill_list[:])
 			// Draw UI elements (not affected by camera)
-			rl.DrawText("Use A/D to move, SPACE to jump, P to pause, Mouse to shoot", 10, 10, 20, rl.WHITE)
+			rl.DrawText(
+				"Use A/D to move, SPACE to jump, P to pause, Mouse to shoot",
+				10,
+				10,
+				20,
+				rl.WHITE,
+			)
 			rl.DrawText(rl.TextFormat("Player X: %.1f", player.pos.x), 10, 35, 20, rl.WHITE)
 			// rl.DrawText(rl.TextFormat("SCORE: %v", score), 10, 60, 20, rl.WHITE)
 
-			// Count active enemies
 			active_enemies := 0
 			for enemy in enemies {
 				if enemy.active && !enemy.dying do active_enemies += 1
@@ -590,11 +610,9 @@ main :: proc() {
 				20,
 				rl.WHITE,
 			)
-
 		// debug_mouse_info(camera)
 
 		case .GAME_OVER:
-			// Draw game over screen
 			draw_game_over_screen()
 		}
 
@@ -602,13 +620,7 @@ main :: proc() {
 		free_all(context.temp_allocator)
 	}
 
-	// Cleanup textures
-	for texture in player_textures {
-		rl.UnloadTexture(texture)
-	}
-	rl.UnloadSound(game_over_sound)
-	rl.UnloadSound(damage_taken_sound)
-	rl.UnloadSound(shot_sound)
+	unload_assets(&player_textures, &sound)
 	rl.CloseAudioDevice()
 	rl.CloseWindow()
 }
