@@ -319,10 +319,6 @@ skill_flash :: proc(player: ^Player, camera: rl.Camera2D) {
 		// Apply bounds checking to prevent going out of world
 		player.pos.x = clamp(new_pos.x, 0, WORLD_WIDTH - PLAYER_SIZE)
 		player.pos.y = clamp(new_pos.y, 0, f32(window_height) - PLAYER_SIZE)
-		// Optional: Reset grounded state if moving vertically
-		if math.abs(normalized_direction.y) > 0.1 {
-			player.grounded = false
-		}
 	}
 	flash_end_pos = player.pos
 }

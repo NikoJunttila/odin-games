@@ -1,5 +1,6 @@
 package game
 
+import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
@@ -65,7 +66,7 @@ bullet_logic_update :: proc(bullet: ^Bullet, enemies: ^[20]Enemy, player: ^Playe
 	}
 }
 
-player_dying :: proc(player : ^Player, game_state : ^GameState) {
+player_dying :: proc(player: ^Player, game_state: ^GameState) {
 	player.death_timer += dt
 
 	// Update death particles
@@ -106,7 +107,13 @@ player_alive_camera_update :: proc(camera: ^rl.Camera2D, player: Player) {
 	}
 }
 
-player_alive_update :: proc(player: ^Player, skill_list: ^[SKILL_COUNT]Skill, camera: rl.Camera2D) {
+player_alive_update :: proc(
+	player: ^Player,
+	skill_list: ^[SKILL_COUNT]Skill,
+	camera: rl.Camera2D,
+	platforms: []Platform,
+	player_feet_collider: rl.Rectangle,
+) {
 	// Horizontal movement
 	is_moving = false
 	if rl.IsKeyDown(.A) {
@@ -118,6 +125,7 @@ player_alive_update :: proc(player: ^Player, skill_list: ^[SKILL_COUNT]Skill, ca
 	} else {
 		player.vel.x = 0
 	}
+
 	//update skills
 	for &skill in skill_list {
 		if skill.on_cd {
@@ -128,6 +136,7 @@ player_alive_update :: proc(player: ^Player, skill_list: ^[SKILL_COUNT]Skill, ca
 			}
 		}
 	}
+
 	// Jumping - only when grounded and space is pressed
 	if rl.IsKeyPressed(.SPACE) && player.grounded {
 		player.vel.y = JUMP_FORCE
@@ -139,34 +148,33 @@ player_alive_update :: proc(player: ^Player, skill_list: ^[SKILL_COUNT]Skill, ca
 		skill_list[0].cd_left = skill_list[0].cooldown
 		skill_flash(player, camera)
 	}
+
 	if rl.IsKeyPressed(.E) && !skill_list[1].on_cd { 	//heal
 		skill_list[1].on_cd = true
 		skill_list[1].cd_left = skill_list[1].cooldown
-	  skill_heal(player)		
-  }
+		skill_heal(player)
+	}
 
 	if muzzle_flash_timer > 0 {
 		muzzle_flash_timer -= rl.GetFrameTime()
 	}
+
 	// Shooting - left mouse button
 	if rl.IsMouseButtonPressed(.LEFT) {
 		play_sound_varied_low(sounds.shot)
 		muzzle_flash_timer = MUZZLE_FLASH_DURATION
 		// Calculate player center for shooting from
 		player_center := rl.Vector2{player.pos.x + PLAYER_SIZE / 2, player.pos.y + PLAYER_SIZE / 2}
-
 		// Calculate direction vector from player to mouse
 		direction := rl.Vector2 {
 			mouse_world_pos.x - player_center.x,
 			mouse_world_pos.y - player_center.y,
 		}
-
 		// Normalize direction and apply bullet speed
 		length := math.sqrt(direction.x * direction.x + direction.y * direction.y)
 		if length > 0 {
 			direction.x = (direction.x / length) * BULLET_SPEED
 			direction.y = (direction.y / length) * BULLET_SPEED
-
 			// Create new bullet
 			bullets[next_bullet_index] = Bullet {
 				pos    = player_center,
@@ -177,21 +185,38 @@ player_alive_update :: proc(player: ^Player, skill_list: ^[SKILL_COUNT]Skill, ca
 		}
 	}
 
-	// Apply gravity when not grounded
+	// Apply gravity only when not grounded
 	if !player.grounded {
 		player.vel.y += GRAVITY * dt
 	}
-
-	// Update position
-	player.pos += player.vel * dt
-
-	// Clamp horizontal position to world bounds (not screen bounds)
+	// Update horizontal position first
+	player.pos.x += player.vel.x * dt
+	// Clamp horizontal position to world bounds
 	player.pos.x = clamp(player.pos.x, 0, WORLD_WIDTH - PLAYER_SIZE)
-	player.pos.y = clamp(player.pos.y, 0, f32(window_height - PLAYER_SIZE))
-
-	// Check if player is on the ground
-	if player.pos.y == f32(window_height - PLAYER_SIZE) {
+	// Reset grounded state - it will be set to true if we're on a platform
+	player.grounded = false
+  for &platform in platforms {
+	if rl.CheckCollisionRecs(player_feet_collider, platform.rect) &&
+	   player.vel.y >= 0 &&
+	   player_feet_collider.y <= platform.rect.y + 10 {
+		player.vel.y = 0
+		player.pos.y = platform.rect.y - PLAYER_SIZE + 9
+		player.grounded = true
+	}
+  }
+	if !player.grounded {
+		player.pos.y += player.vel.y * dt
+	}
+	// Ground collision (bottom of screen)
+	if player.pos.y >= f32(window_height - PLAYER_SIZE) {
+		player.pos.y = f32(window_height - PLAYER_SIZE)
 		player.vel.y = 0
 		player.grounded = true
+	}
+
+	// Prevent going above screen
+	if player.pos.y < 0 {
+		player.pos.y = 0
+		player.vel.y = 0
 	}
 }

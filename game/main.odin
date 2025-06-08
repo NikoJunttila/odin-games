@@ -12,14 +12,15 @@ main :: proc() {
 	rl.SetWindowMinSize(300, 300)
 	rl.SetTargetFPS(200)
 	rl.InitAudioDevice()
-	sounds = load_sounds()
 	// Initialize player
 	player := init_player()
 	skill_list := skills_list_init()
 	// Game state
 	game_state := GameState.PLAYING
 	//load assets
+	sounds = load_sounds()
 	player_textures := load_player_textures()
+	platform_texture := rl.LoadTexture("assets/platform.png")
 	// Enemy system
 	enemies: [MAX_ENEMIES]Enemy
 	next_enemy_index: int = 0
@@ -39,6 +40,17 @@ main :: proc() {
 		camera.zoom = f32(window_height / PIXEL_WINDOW_HEIGHT)
 		dt = rl.GetFrameTime()
 
+		player_feet_collider := rl.Rectangle {
+			player.pos.x + 30,
+			player.pos.y + PLAYER_SIZE,
+			PLAYER_SIZE - 50,
+			10,
+		}
+		// platform := rl.Rectangle{300, f32(window_height - PLAYER_SIZE), 100, 20}
+		// platform2 := rl.Rectangle{500, f32(window_height - PLAYER_SIZE), 100, 20}
+		//   platforms := []rl.Rectangle{platform, platform2}
+		platforms := generate_platforms(window_height, context.temp_allocator)
+
 		switch game_state {
 		case .PAUSED:
 			if rl.IsKeyPressed(.P) {
@@ -54,8 +66,14 @@ main :: proc() {
 			}
 			// Only allow input if player is not dying
 			if !player.dying {
-				player_alive_update(&player, &skill_list, camera)
-        player_alive_camera_update(&camera, player)
+				player_alive_update(
+					&player,
+					&skill_list,
+					camera,
+					platforms[:],
+					player_feet_collider,
+				)
+				player_alive_camera_update(&camera, player)
 			}
 			// Update player death animation
 			if player.dying {
@@ -104,9 +122,13 @@ main :: proc() {
 		// Draw background elements
 		draw_background(camera)
 
+		//debug draws
+		rl.DrawRectangleRec(player_feet_collider, rl.PURPLE)
+
+		draw_platforms(platforms, platform_texture)
 		if !player.dying {
 			draw_player(player, &camera, player_textures)
-      draw_gun(player,player_textures.gun)
+			draw_gun(player, player_textures.gun)
 		} else {
 			// Draw death particles
 			for particle in player.death_particles {
@@ -129,14 +151,14 @@ main :: proc() {
 		for &enemy in enemies {
 			draw_enemy(enemy)
 		}
-    if flash_animation_timer > 0{
-      draw_flash_animation()
-      flash_animation_timer -= dt
-    }
-    if heal_animation_timer > 0{
-      draw_heal_animation(player.pos)
-      heal_animation_timer -= dt
-    }
+		if flash_animation_timer > 0 {
+			draw_flash_animation()
+			flash_animation_timer -= dt
+		}
+		if heal_animation_timer > 0 {
+			draw_heal_animation(player.pos)
+			heal_animation_timer -= dt
+		}
 
 		// Draw world bounds visualization
 		rl.DrawRectangleLines(0, 0, WORLD_WIDTH, window_height, rl.RED)
@@ -156,6 +178,7 @@ main :: proc() {
 	}
 
 	unload_assets(&player_textures)
+	rl.UnloadTexture(platform_texture)
 	rl.CloseAudioDevice()
 	rl.CloseWindow()
 }
