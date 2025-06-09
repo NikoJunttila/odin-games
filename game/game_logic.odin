@@ -3,6 +3,7 @@ package game
 import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
+import "core:math/rand"
 
 bullet_logic_update :: proc(bullet: ^Bullet, enemies: ^[20]Enemy, player: ^Player) {
 	if bullet.active {
@@ -175,10 +176,18 @@ player_alive_update :: proc(
 			direction.x = (direction.x / length) * BULLET_SPEED
 			direction.y = (direction.y / length) * BULLET_SPEED
 			// Create new bullet
+			// Generate random bright color (avoiding black/dark colors)
+			color := rl.Color {
+				u8(128 + rand.int31() % 128), // 128-255 range
+				u8(128 + rand.int31() % 128), // 128-255 range  
+				u8(128 + rand.int31() % 128), // 128-255 range
+				255,
+			}
 			bullets[next_bullet_index] = Bullet {
 				pos    = player_center,
 				vel    = direction,
 				active = true,
+				color  = color,
 			}
 			next_bullet_index = (next_bullet_index + 1) % MAX_BULLETS
 		}
@@ -194,15 +203,15 @@ player_alive_update :: proc(
 	player.pos.x = clamp(player.pos.x, 0, WORLD_WIDTH - PLAYER_SIZE)
 	// Reset grounded state - it will be set to true if we're on a platform
 	player.grounded = false
-  for &platform in level.platforms {
-	if rl.CheckCollisionRecs(player_feet_collider, platform_to_rect(platform,level.p_size)) &&
-	   player.vel.y >= 0 &&
-	   player_feet_collider.y <= platform.pos.y + 10 {
-		player.vel.y = 0
-		player.pos.y = platform.pos.y - PLAYER_SIZE + 9
-		player.grounded = true
+	for &platform in level.platforms {
+		if rl.CheckCollisionRecs(player_feet_collider, platform_to_rect(platform, level.p_size)) &&
+		   player.vel.y >= 0 &&
+		   player_feet_collider.y <= platform.pos.y + 10 {
+			player.vel.y = 0
+			player.pos.y = platform.pos.y - PLAYER_SIZE + 9
+			player.grounded = true
+		}
 	}
-  }
 	if !player.grounded {
 		player.pos.y += player.vel.y * dt
 	}

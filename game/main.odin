@@ -38,6 +38,8 @@ main :: proc() {
 	sounds = load_sounds()
 	player_textures := load_player_textures()
 	platform_texture := rl.LoadTexture("assets/platform.png")
+  background_texture := rl.LoadTexture("assets/background.png")
+  tree_texture := rl.LoadTexture("assets/tree.png")
 	// Enemy system
 	enemies: [MAX_ENEMIES]Enemy
 	next_enemy_index: int = 0
@@ -132,7 +134,7 @@ main :: proc() {
 		rl.ClearBackground(rl.SKYBLUE)
 		rl.BeginMode2D(camera)
 		// Draw background elements
-		draw_background(camera)
+		draw_background(camera, background_texture, tree_texture)
 
 		draw_platforms(level.platforms[:], platform_texture, level)
 		if !player.dying {
@@ -153,7 +155,7 @@ main :: proc() {
 				if bullet.enemy_bullet {
 					rl.DrawCircleV(bullet.pos, 5, rl.BLACK)
 				} else {
-					rl.DrawCircleV(bullet.pos, 5, rl.YELLOW)
+					rl.DrawCircleV(bullet.pos, 5, bullet.color)
 				}
 			}
 		}
@@ -169,7 +171,7 @@ main :: proc() {
 			heal_animation_timer -= dt
 		}
 		//debug draws
-		rl.DrawRectangleRec(player_feet_collider, rl.PURPLE)
+		// rl.DrawRectangleRec(player_feet_collider, rl.PURPLE)
 
 		if rl.IsKeyPressed(.F2) {
 			editing = !editing
@@ -178,11 +180,9 @@ main :: proc() {
 		if editing {
 			// Handle editor input
 			handle_editor_input(&level, mouse_world_pos)
-
 			// Draw platform preview at mouse position
 			rl.DrawTextureV(platform_texture, mouse_world_pos, {255, 255, 255, 128})
 		}
-
 		// Draw world bounds visualization
 		rl.DrawRectangleLines(0, 0, WORLD_WIDTH, window_height, rl.RED)
 		rl.EndMode2D()
@@ -204,6 +204,8 @@ main :: proc() {
 	}
 	unload_assets(&player_textures)
 	rl.UnloadTexture(platform_texture)
+  rl.UnloadTexture(background_texture)
+  rl.UnloadTexture(tree_texture)
 	rl.CloseAudioDevice()
 	rl.CloseWindow()
 

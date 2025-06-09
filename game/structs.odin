@@ -43,6 +43,7 @@ Bullet :: struct {
     vel: rl.Vector2,
     active: bool,
     enemy_bullet : bool,
+    color : rl.Color,
 }
 
 Enemy :: struct {
