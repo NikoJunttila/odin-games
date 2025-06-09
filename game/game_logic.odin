@@ -111,7 +111,7 @@ player_alive_update :: proc(
 	player: ^Player,
 	skill_list: ^[SKILL_COUNT]Skill,
 	camera: rl.Camera2D,
-	platforms: []Platform,
+	level: ^Level,
 	player_feet_collider: rl.Rectangle,
 ) {
 	// Horizontal movement
@@ -136,7 +136,6 @@ player_alive_update :: proc(
 			}
 		}
 	}
-
 	// Jumping - only when grounded and space is pressed
 	if rl.IsKeyPressed(.SPACE) && player.grounded {
 		player.vel.y = JUMP_FORCE
@@ -195,12 +194,12 @@ player_alive_update :: proc(
 	player.pos.x = clamp(player.pos.x, 0, WORLD_WIDTH - PLAYER_SIZE)
 	// Reset grounded state - it will be set to true if we're on a platform
 	player.grounded = false
-  for &platform in platforms {
-	if rl.CheckCollisionRecs(player_feet_collider, platform.rect) &&
+  for &platform in level.platforms {
+	if rl.CheckCollisionRecs(player_feet_collider, platform_to_rect(platform,level.p_size)) &&
 	   player.vel.y >= 0 &&
-	   player_feet_collider.y <= platform.rect.y + 10 {
+	   player_feet_collider.y <= platform.pos.y + 10 {
 		player.vel.y = 0
-		player.pos.y = platform.rect.y - PLAYER_SIZE + 9
+		player.pos.y = platform.pos.y - PLAYER_SIZE + 9
 		player.grounded = true
 	}
   }

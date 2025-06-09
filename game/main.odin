@@ -5,8 +5,24 @@ import "core:fmt"
 import "core:math"
 import "core:math/rand"
 import rl "vendor:raylib"
+import "core:mem"
+import "core:encoding/json"
+import "core:os"
 
 main :: proc() {
+  track : mem.Tracking_Allocator
+  mem.tracking_allocator_init(&track, context.allocator)
+  context.allocator = mem.tracking_allocator(&track)
+  defer {
+    for _, entry in track.allocation_map{
+      fmt.eprintf("%v leaked %v bytes\n", entry.location, entry.size)
+    }
+    for entry in track.bad_free_array{
+      fmt.eprintf("%v bad free\n", entry.location)
+    }
+    mem.tracking_allocator_destroy(&track)
+  }
+
 	rl.SetConfigFlags({.VSYNC_HINT, .WINDOW_RESIZABLE})
 	rl.InitWindow(window_width, window_height, "cat game")
 	rl.SetWindowMinSize(300, 300)
@@ -17,6 +33,7 @@ main :: proc() {
 	skill_list := skills_list_init()
 	// Game state
 	game_state := GameState.PLAYING
+	spawn_enemies := false
 	//load assets
 	sounds = load_sounds()
 	player_textures := load_player_textures()
@@ -31,14 +48,25 @@ main :: proc() {
 		rotation = 0,
 		zoom     = 1.0,
 	}
+	level := Level {
+		p_size = {200, 20},
+	}
 
+	editing := false
+
+	level.platforms = generate_platforms(level, context.allocator)
+	last_change_w_height := window_height
 	for !rl.WindowShouldClose() {
 		window_width = rl.GetScreenWidth()
 		window_height = rl.GetScreenHeight()
-		mouse_screen_pos := rl.GetMousePosition()
-		mouse_world_pos = rl.GetScreenToWorld2D(mouse_screen_pos, camera)
+		mouse_world_pos = rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
 		camera.zoom = f32(window_height / PIXEL_WINDOW_HEIGHT)
 		dt = rl.GetFrameTime()
+
+		if last_change_w_height != window_height {
+			update_platform_positions(&level.platforms, level)
+			last_change_w_height = window_height
+		}
 
 		player_feet_collider := rl.Rectangle {
 			player.pos.x + 30,
@@ -46,10 +74,6 @@ main :: proc() {
 			PLAYER_SIZE - 50,
 			10,
 		}
-		// platform := rl.Rectangle{300, f32(window_height - PLAYER_SIZE), 100, 20}
-		// platform2 := rl.Rectangle{500, f32(window_height - PLAYER_SIZE), 100, 20}
-		//   platforms := []rl.Rectangle{platform, platform2}
-		platforms := generate_platforms(window_height, context.temp_allocator)
 
 		switch game_state {
 		case .PAUSED:
@@ -66,13 +90,7 @@ main :: proc() {
 			}
 			// Only allow input if player is not dying
 			if !player.dying {
-				player_alive_update(
-					&player,
-					&skill_list,
-					camera,
-					platforms[:],
-					player_feet_collider,
-				)
+				player_alive_update(&player, &skill_list, camera, &level, player_feet_collider)
 				player_alive_camera_update(&camera, player)
 			}
 			// Update player death animation
@@ -88,7 +106,9 @@ main :: proc() {
 				enemy_spawn_timer += dt
 				if enemy_spawn_timer >= ENEMY_SPAWN_RATE {
 					enemy_spawn_timer = 0
-					spawn_enemy(&enemies, next_enemy_index, camera, player.pos)
+					if spawn_enemies {
+						spawn_enemy(&enemies, next_enemy_index, camera, player.pos)
+					}
 					next_enemy_index = (next_enemy_index + 1) % MAX_ENEMIES
 				}
 			}
@@ -122,10 +142,7 @@ main :: proc() {
 		// Draw background elements
 		draw_background(camera)
 
-		//debug draws
-		rl.DrawRectangleRec(player_feet_collider, rl.PURPLE)
-
-		draw_platforms(platforms, platform_texture)
+		draw_platforms(level.platforms[:], platform_texture, level)
 		if !player.dying {
 			draw_player(player, &camera, player_textures)
 			draw_gun(player, player_textures.gun)
@@ -159,7 +176,28 @@ main :: proc() {
 			draw_heal_animation(player.pos)
 			heal_animation_timer -= dt
 		}
-
+		//debug draws
+		rl.DrawRectangleRec(player_feet_collider, rl.PURPLE)
+		if rl.IsKeyPressed(.F2) {
+			editing = !editing
+		}
+		if editing {
+			rl.DrawTextureV(platform_texture, mouse_world_pos, rl.WHITE)
+			if rl.IsMouseButtonPressed(.LEFT) {
+				append(&level.platforms, Platform{pos = mouse_world_pos})
+			}
+			if rl.IsMouseButtonPressed(.RIGHT) {
+				for p, idx in level.platforms {
+					if rl.CheckCollisionPointRec(
+						mouse_world_pos,
+						platform_to_rect(p, level.p_size),
+					) {
+						unordered_remove(&level.platforms, idx)
+						break
+					}
+				}
+			}
+		}
 		// Draw world bounds visualization
 		rl.DrawRectangleLines(0, 0, WORLD_WIDTH, window_height, rl.RED)
 		rl.EndMode2D()
@@ -176,9 +214,14 @@ main :: proc() {
 		rl.EndDrawing()
 		free_all(context.temp_allocator)
 	}
-
 	unload_assets(&player_textures)
 	rl.UnloadTexture(platform_texture)
 	rl.CloseAudioDevice()
 	rl.CloseWindow()
+
+  if level_data, err := json.marshal(level, allocator = context.temp_allocator); err == nil {
+    os.write_entire_file("level.json", level_data)
+  }
+  //kinda unnecessary because memory is freed anyways after program exits
+  delete(level.platforms)
 }
