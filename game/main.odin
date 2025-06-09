@@ -1,27 +1,27 @@
 package game
 
 import "core:c"
+import "core:encoding/json"
 import "core:fmt"
 import "core:math"
 import "core:math/rand"
-import rl "vendor:raylib"
 import "core:mem"
-import "core:encoding/json"
 import "core:os"
+import rl "vendor:raylib"
 
 main :: proc() {
-  track : mem.Tracking_Allocator
-  mem.tracking_allocator_init(&track, context.allocator)
-  context.allocator = mem.tracking_allocator(&track)
-  defer {
-    for _, entry in track.allocation_map{
-      fmt.eprintf("%v leaked %v bytes\n", entry.location, entry.size)
-    }
-    for entry in track.bad_free_array{
-      fmt.eprintf("%v bad free\n", entry.location)
-    }
-    mem.tracking_allocator_destroy(&track)
-  }
+	track: mem.Tracking_Allocator
+	mem.tracking_allocator_init(&track, context.allocator)
+	context.allocator = mem.tracking_allocator(&track)
+	defer {
+		for _, entry in track.allocation_map {
+			fmt.eprintf("%v leaked %v bytes\n", entry.location, entry.size)
+		}
+		for entry in track.bad_free_array {
+			fmt.eprintf("%v bad free\n", entry.location)
+		}
+		mem.tracking_allocator_destroy(&track)
+	}
 
 	rl.SetConfigFlags({.VSYNC_HINT, .WINDOW_RESIZABLE})
 	rl.InitWindow(window_width, window_height, "cat game")
@@ -33,7 +33,7 @@ main :: proc() {
 	skill_list := skills_list_init()
 	// Game state
 	game_state := GameState.PLAYING
-	spawn_enemies := false
+	spawn_enemies := true
 	//load assets
 	sounds = load_sounds()
 	player_textures := load_player_textures()
@@ -51,22 +51,14 @@ main :: proc() {
 	level := Level {
 		p_size = {200, 20},
 	}
-
 	editing := false
-
-	level.platforms = generate_platforms(level, context.allocator)
-	last_change_w_height := window_height
+	init_level(&level)
 	for !rl.WindowShouldClose() {
 		window_width = rl.GetScreenWidth()
 		window_height = rl.GetScreenHeight()
 		mouse_world_pos = rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
 		camera.zoom = f32(window_height / PIXEL_WINDOW_HEIGHT)
 		dt = rl.GetFrameTime()
-
-		if last_change_w_height != window_height {
-			update_platform_positions(&level.platforms, level)
-			last_change_w_height = window_height
-		}
 
 		player_feet_collider := rl.Rectangle {
 			player.pos.x + 30,
@@ -178,26 +170,19 @@ main :: proc() {
 		}
 		//debug draws
 		rl.DrawRectangleRec(player_feet_collider, rl.PURPLE)
+
 		if rl.IsKeyPressed(.F2) {
 			editing = !editing
 		}
+
 		if editing {
-			rl.DrawTextureV(platform_texture, mouse_world_pos, rl.WHITE)
-			if rl.IsMouseButtonPressed(.LEFT) {
-				append(&level.platforms, Platform{pos = mouse_world_pos})
-			}
-			if rl.IsMouseButtonPressed(.RIGHT) {
-				for p, idx in level.platforms {
-					if rl.CheckCollisionPointRec(
-						mouse_world_pos,
-						platform_to_rect(p, level.p_size),
-					) {
-						unordered_remove(&level.platforms, idx)
-						break
-					}
-				}
-			}
+			// Handle editor input
+			handle_editor_input(&level, mouse_world_pos)
+
+			// Draw platform preview at mouse position
+			rl.DrawTextureV(platform_texture, mouse_world_pos, {255, 255, 255, 128})
 		}
+
 		// Draw world bounds visualization
 		rl.DrawRectangleLines(0, 0, WORLD_WIDTH, window_height, rl.RED)
 		rl.EndMode2D()
@@ -206,10 +191,13 @@ main :: proc() {
 		case .PAUSED:
 			draw_game_paused_screen()
 		case .PLAYING:
+      if !editing{
 			draw_game_playing_texts(player, enemies[:], skill_list[:])
+      }
 		case .GAME_OVER:
 			draw_game_over_screen()
 		}
+		draw_editor_ui(&level, editing)
 
 		rl.EndDrawing()
 		free_all(context.temp_allocator)
@@ -219,9 +207,6 @@ main :: proc() {
 	rl.CloseAudioDevice()
 	rl.CloseWindow()
 
-  if level_data, err := json.marshal(level, allocator = context.temp_allocator); err == nil {
-    os.write_entire_file("level.json", level_data)
-  }
-  //kinda unnecessary because memory is freed anyways after program exits
-  delete(level.platforms)
+	//kinda unnecessary because memory is freed anyways after program exits
+	delete(level.platforms)
 }
