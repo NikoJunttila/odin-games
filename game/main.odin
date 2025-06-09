@@ -1,12 +1,7 @@
 package game
 
-import "core:c"
-import "core:encoding/json"
 import "core:fmt"
-import "core:math"
-import "core:math/rand"
 import "core:mem"
-import "core:os"
 import rl "vendor:raylib"
 
 main :: proc() {

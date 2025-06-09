@@ -202,7 +202,7 @@ spawn_enemy :: proc(
 	screen_left := camera.target.x - f32(window_width) / 2
 	screen_right := camera.target.x + f32(window_width) / 2
 	screen_top := camera.target.y - f32(window_height) / 2
-	screen_bottom := camera.target.y - f32(window_height) / 2
+	// screen_bottom := camera.target.y - f32(window_height) / 2
 
 	// Randomly choose a side to spawn from (0: left, 1: right, 2: top, 3: bottom)
 	// Create an enemy with an initial target near the player

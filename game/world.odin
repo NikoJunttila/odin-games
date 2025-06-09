@@ -55,7 +55,7 @@ draw_background :: proc(camera: rl.Camera2D, background_texture, tree_texture: r
 
 			// Random Y offset (slight variation in tree positioning)
 			y_variation := f32((seed % 20) - 10) // -10 to +10 pixel variation
-			tree_y := f32(window_height - PLAYER_SIZE - tree_texture.height) + y_variation
+			tree_y := f32(window_height - PLAYER_SIZE * 1.5) + y_variation
 
 			// Random scale (some trees bigger/smaller)
 			scale_variation := 0.8 + f32((seed * 7) % 40) / 100.0 // 0.8 to 1.2 scale
